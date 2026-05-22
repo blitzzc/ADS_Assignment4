@@ -250,3 +250,116 @@ cd src
 javac *.java
 java Main
 ```
+
+---
+
+## G. BONUS — Dijkstra's Shortest Path Algorithm
+
+### Overview
+Dijkstra's algorithm finds the **minimum-cost path** from a single source vertex to every other reachable vertex in a weighted graph. Unlike BFS (which finds the fewest-hop path), Dijkstra respects edge weights, making it essential for real-world applications like GPS navigation and network routing.
+
+### Changes Made to Existing Classes
+
+**`Edge.java`** — added `int weight` field:
+```java
+private int weight;
+
+// New weighted constructor
+public Edge(Vertex source, Vertex destination, int weight) { ... }
+
+// Original constructor preserved (defaults weight to 1) — backward compatible
+public Edge(Vertex source, Vertex destination) { this(source, destination, 1); }
+```
+
+**`Graph.java`** — adjacency list upgraded from `List<Vertex>` to `List<Edge>`:
+```java
+// Before (BFS/DFS only):
+Map<Vertex, List<Vertex>> adjacencyList;
+
+// After (supports weights):
+Map<Vertex, List<Edge>> adjacencyList;
+```
+BFS and DFS still work — they simply call `edge.getDestination()` and ignore the weight.
+
+New overloaded `addEdge`:
+```java
+addEdge(int from, int to)              // unweighted (weight = 1)
+addEdge(int from, int to, int weight)  // weighted
+```
+
+### How Dijkstra Works — Step by Step
+
+Given this weighted graph (7 vertices, starting from V0):
+
+```
+V0 --1--> V1 --5--> V3
+V0 --4--> V2            \--6--> V6
+V0 --3--> V4 --2--> V3
+          V4 --3--> V5 --2--> V6
+```
+
+**Initialisation:**
+```
+dist = [0, ∞, ∞, ∞, ∞, ∞, ∞]   (0 for source, infinity for all others)
+prev = [-1, -1, -1, -1, -1, -1, -1]
+visited = [F, F, F, F, F, F, F]
+```
+
+**Round 1** — pick smallest unvisited dist → V0 (dist=0):
+- Relax V0→V1 (cost 1): dist[V1] = 0+1 = **1**, prev[V1]=V0
+- Relax V0→V2 (cost 4): dist[V2] = 0+4 = **4**, prev[V2]=V0
+- Relax V0→V4 (cost 3): dist[V4] = 0+3 = **3**, prev[V4]=V0
+
+**Round 2** — pick V1 (dist=1):
+- Relax V1→V3 (cost 5): dist[V3] = 1+5 = **6**, prev[V3]=V1
+
+**Round 3** — pick V4 (dist=3):
+- Relax V4→V3 (cost 2): dist[V3] = 3+2 = **5** ← BETTER, prev[V3]=V4 ✓
+- Relax V4→V5 (cost 3): dist[V5] = 3+3 = **6**, prev[V5]=V4
+
+**Round 4** — pick V2 (dist=4): no improvements
+
+**Round 5** — pick V3 (dist=5):
+- Relax V3→V6 (cost 6): dist[V6] = 5+6 = **11**, prev[V6]=V3
+
+**Round 6** — pick V5 (dist=6):
+- Relax V5→V6 (cost 2): dist[V6] = 6+2 = **8** ← BETTER, prev[V6]=V5 ✓
+
+**Final distances:**
+
+| Vertex | Shortest Distance | Path |
+|:---:|:---:|:---|
+| V0 | 0 | V0 |
+| V1 | 1 | V0 → V1 |
+| V2 | 4 | V0 → V2 |
+| V3 | 5 | V0 → V4 → V3 |
+| V4 | 3 | V0 → V4 |
+| V5 | 6 | V0 → V4 → V5 |
+| V6 | 8 | V0 → V4 → V5 → V6 |
+
+### Sample Output
+```
+--- Dijkstra Shortest Paths from V0 ---
+Target     Distance   Path
+--------------------------------------------------
+V0         0          V0
+V1         1          V0 -> V1
+V2         4          V0 -> V2
+V3         5          V0 -> V4 -> V3
+V4         3          V0 -> V4
+V5         6          V0 -> V4 -> V5
+V6         8          V0 -> V4 -> V5 -> V6
+--------------------------------------------------
+```
+
+### Complexity Analysis
+
+| | Value | Reason |
+|---|---|---|
+| Time | O(V²) | Finding minimum each round is O(V), repeated V times |
+| Space | O(V) | Three arrays of size V: dist[], visited[], prev[] |
+
+> With a Priority Queue (min-heap), time improves to O((V+E) log V), but the assignment permits simple loops — O(V²) is correct here.
+
+### Key Limitation
+Dijkstra **does not work with negative edge weights**. If a negative edge existed, a "committed" shortest path could be later improved, breaking the greedy guarantee. For negative weights, use the Bellman-Ford algorithm instead.
